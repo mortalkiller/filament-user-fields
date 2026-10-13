@@ -13,6 +13,8 @@
  */
 
 use Livewire\Livewire;
+use Zvizvi\UserFields\Components\UserStackedColumn;
+use Zvizvi\UserFields\Components\UserStackedEntry;
 use Zvizvi\UserFields\Tests\Fixtures\Livewire\PostForm;
 use Zvizvi\UserFields\Tests\Fixtures\Livewire\PostInfolist;
 use Zvizvi\UserFields\Tests\Fixtures\Livewire\PostsFilterTable;
@@ -101,5 +103,48 @@ describe('UserSelectFilter (table filter)', function () {
             ->filterTable('author_id', $this->alice->id)
             ->assertCanSeeTableRecords([$postByAlice])
             ->assertCanNotSeeTableRecords([$postByBob]);
+    });
+});
+
+describe('Filament image URL compatibility', function () {
+    it('renders a unique avatar for each user even when names match', function () {
+        $this->bob->update(['name' => $this->alice->name]);
+
+        $team = Team::create(['name' => 'Avatar collision']);
+        $team->members()->attach([$this->alice->id, $this->bob->id]);
+
+        Livewire::test(TeamStackedTable::class)
+            ->assertOk()
+            ->assertCanSeeTableRecords([$team])
+            ->assertSee("https://example.test/avatars/{$this->alice->getKey()}.png", escape: false)
+            ->assertSee("https://example.test/avatars/{$this->bob->getKey()}.png", escape: false);
+
+        $postByAlice = Post::create([
+            'title' => 'Post by first Alice',
+            'author_id' => $this->alice->id,
+        ]);
+        $postByBob = Post::create([
+            'title' => 'Post by second Alice',
+            'author_id' => $this->bob->id,
+        ]);
+
+        Livewire::test(PostInfolist::class, ['record' => $postByAlice])
+            ->assertOk()
+            ->assertSee("https://example.test/avatars/{$this->alice->getKey()}.png", escape: false);
+
+        Livewire::test(PostInfolist::class, ['record' => $postByBob])
+            ->assertOk()
+            ->assertSee("https://example.test/avatars/{$this->bob->getKey()}.png", escape: false);
+    });
+
+    it('accepts the optional related record argument in both stacked components', function () {
+        foreach ([UserStackedColumn::class, UserStackedEntry::class] as $componentClass) {
+            $method = new ReflectionMethod($componentClass, 'getImageUrl');
+            $parameters = $method->getParameters();
+
+            expect($parameters)->toHaveCount(2)
+                ->and($parameters[1]->getName())->toBe('relatedRecord')
+                ->and($parameters[1]->isOptional())->toBeTrue();
+        }
     });
 });
