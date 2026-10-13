@@ -107,6 +107,26 @@ describe('UserSelectFilter (table filter)', function () {
 });
 
 describe('Filament image URL compatibility', function () {
+    it('renders a unique avatar for each user even when names match', function () {
+        $this->bob->update(['name' => $this->alice->name]);
+
+        $team = Team::create(['name' => 'Avatar collision']);
+        $team->members()->attach([$this->alice->id, $this->bob->id]);
+
+        Livewire::test(TeamStackedTable::class)
+            ->assertOk()
+            ->assertCanSeeTableRecords([$team])
+            ->assertSee("https://example.test/avatars/{$this->alice->getKey()}.png", escape: false)
+            ->assertSee("https://example.test/avatars/{$this->bob->getKey()}.png", escape: false);
+
+        foreach ([UserStackedColumn::make('members.name'), UserStackedEntry::make('members.name')] as $component) {
+            expect($component->getImageUrl($this->alice, $this->alice))
+                ->toBe("https://example.test/avatars/{$this->alice->getKey()}.png")
+                ->and($component->getImageUrl($this->bob, $this->bob))
+                ->toBe("https://example.test/avatars/{$this->bob->getKey()}.png");
+        }
+    });
+
     it('accepts the optional related record argument in both stacked components', function () {
         foreach ([UserStackedColumn::class, UserStackedEntry::class] as $componentClass) {
             $method = new ReflectionMethod($componentClass, 'getImageUrl');
