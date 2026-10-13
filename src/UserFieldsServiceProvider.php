@@ -35,8 +35,8 @@ class UserFieldsServiceProvider extends PackageServiceProvider
             $package->hasConfigFile();
         }
 
-        if (file_exists($package->basePath('/../database/migrations'))) {
-            $package->hasMigrations($this->getMigrations());
+        if (is_dir($package->basePath('/../database/migrations'))) {
+            $package->discoversMigrations();
         }
 
         if (file_exists($package->basePath('/../resources/lang'))) {
